@@ -1,0 +1,15 @@
+# Go build artifacts
+main
+*.exe
+*.out
+
+# Go test binaries
+*.test
+
+# IDE / editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+
