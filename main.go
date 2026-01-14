@@ -3,6 +3,8 @@ import(
 	"fmt"
 	"os"
 	"time"
+	"bufio"
+	"strings"
 )
 type Task struct{
 	ID int
@@ -15,25 +17,25 @@ var tasks []Task
 var TaskQueue = make(chan *Task) // create a channel named TaskQueue that can only parse and store Task type data 
 
 func addTask(name string) {
-		task:= Task{
-				ID: len(tasks)+1,
-				Name : name,
-				Status : "Pending",
-		}	
-		tasks = append(tasks,task)
+	task:= Task{
+		ID: len(tasks)+1,
+		Name : name,
+		Status : "Pending",
+	}	
+	tasks = append(tasks,task)
 }	
 
 func worker(id int, tasks <-chan *Task){
 	for task := range tasks {
 		fmt.Printf("Worker %d started task %d\n", id, task.ID)
 		task.Status = "Running"
-		
 
-	time.Sleep(2*time.Second)
 
-	task.Status = "Completed"
-	fmt.Printf("Worker %d finished task %d\n", id, task.ID)
-}
+		time.Sleep(2*time.Second)
+
+		task.Status = "Completed"
+		fmt.Printf("Worker %d finished task %d\n", id, task.ID)
+	}
 
 }
 
@@ -42,57 +44,71 @@ func main(){
 
 
 
-	args := os.Args
-	if len(args) < 2 {
-		fmt.Println("Usage: add | list | run")
-		return
-	}
-
-	command := args[1]
-	fmt.Println("command :",command)
 
 	for i:=1; i<=3; i++ {
 		go worker(i,TaskQueue)
 	}
 
-	switch command {
-		case "add" :
-			if len(args) < 3 {
-			fmt.Println("Usage: add <task_name>")
-			return
-		
+	scanner := bufio.NewScanner(os.Stdin)
+
+
+	for {
+		fmt.Print("> ")
+		scanner.Scan()
+		line := scanner.Text()
+
+		if line == ""{
+			continue;
 		}
-	addTask(args[2])
-	fmt.Println("Task added")
 
-/////////////////////////////////////////////////////////////
+		parts := strings.Fields(line)
+		command := parts[0]
+
+		switch command {
+		case "add" :
+			if len(parts) < 2{
+				fmt.Println("Usage :  Add <task_name>")
+				continue
+			}
+			addTask(parts[1])
+			fmt.Println("Task added")
+
+			/////////////////////////////////////////////////////////////
 
 
-	case "list" :
+		case "list" :
 			if len(tasks) == 0 {
 				fmt.Println("No tasks found")
-				return
-	}
-	for _, task := range tasks {
-		fmt.Printf("%d: %s\n", task.ID, task.Name)
-	}
-/////////////////////////////////////////////////////////////////////
-		
-	case "run" :
-		if len(tasks) == 0{
-			fmt.Println("There are no tasks to run")
-			return
-		}
-		for i := range tasks{
+				continue
+			}
+			for _, task := range tasks {
+				fmt.Printf("%d: %s [%s]\n", task.ID, task.Name, task.Status)
+			}
+			/////////////////////////////////////////////////////////////////////
+
+		case "run" :
+			if len(tasks) == 0{
+				fmt.Println("There are no tasks to continue")
+				continue
+			}
+			for i := range tasks{
 				TaskQueue <- &tasks[i]
 			}
 
 			fmt.Println("task dispatched to workers")
 
-			time.Sleep(5*time.Second)
-////////////////////////////////////////////////////////////////////
-	default:
-		fmt.Println("Unrealised command : ",command)
+
+			////////////////////////////////////////////////////////////////////
+			//
+			//
+
+			case "exit":
+				fmt.Println("Goodbye!")
+				return
+
+		default:
+			fmt.Println("Unrealised command : ",command)
+		}
 	}
 }
 
