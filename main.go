@@ -5,7 +5,12 @@ import(
 	"time"
 	"bufio"
 	"strings"
+	"sync"
 )
+
+var mu sync.Mutex
+var wg sync.WaitGroup
+
 type Task struct{
 	ID int
 	Name string
@@ -17,6 +22,11 @@ var tasks []Task
 var TaskQueue = make(chan *Task) // create a channel named TaskQueue that can only parse and store Task type data 
 
 func addTask(name string) {
+	mu.Lock()
+	defer mu.Unlock()
+
+
+
 	task:= Task{
 		ID: len(tasks)+1,
 		Name : name,
@@ -28,13 +38,19 @@ func addTask(name string) {
 func worker(id int, tasks <-chan *Task){
 	for task := range tasks {
 		fmt.Printf("Worker %d started task %d\n", id, task.ID)
+		mu.Lock()
 		task.Status = "Running"
-
+		mu.Unlock()
 
 		time.Sleep(2*time.Second)
-
+		
+		mu.Lock()
 		task.Status = "Completed"
+		mu.Unlock()
 		fmt.Printf("Worker %d finished task %d\n", id, task.ID)
+
+
+		wg.Done()
 	}
 
 }
@@ -58,7 +74,7 @@ func main(){
 		line := scanner.Text()
 
 		if line == ""{
-			continue;
+			continue
 		}
 
 		parts := strings.Fields(line)
@@ -77,27 +93,43 @@ func main(){
 
 
 		case "list" :
+			mu.Lock()
 			if len(tasks) == 0 {
 				fmt.Println("No tasks found")
+				mu.Unlock()
 				continue
 			}
 			for _, task := range tasks {
 				fmt.Printf("%d: %s [%s]\n", task.ID, task.Name, task.Status)
 			}
+
+			mu.Unlock()
 			/////////////////////////////////////////////////////////////////////
 
 		case "run" :
+			mu.Lock()
 			if len(tasks) == 0{
 				fmt.Println("There are no tasks to continue")
+				mu.Unlock()
 				continue
 			}
+			taskSnapshot := make([]*Task, 0, len(tasks))
+
 			for i := range tasks{
-				TaskQueue <- &tasks[i]
+				taskSnapshot = append(taskSnapshot, &tasks[i])
+				wg.Add(1)
+			}
+			mu.Unlock()
+
+			for _, task := range taskSnapshot{
+						TaskQueue <- task
 			}
 
 			fmt.Println("task dispatched to workers")
 
+			wg.Wait()
 
+			fmt.Println("All tasks Completed")
 			////////////////////////////////////////////////////////////////////
 			//
 			//
