@@ -1,13 +1,14 @@
 package main
-import(
+
+import (
+	"bufio"
+	"context"
 	"fmt"
 	"os"
-	"time"
-	"bufio"
 	"strings"
 	"sync"
+	"time"
 )
-
 var mu sync.Mutex
 var wg sync.WaitGroup
 
@@ -35,7 +36,7 @@ func addTask(name string) {
 	tasks = append(tasks,task)
 }	
 
-func worker(id int, tasks <-chan *Task){
+func worker(id int, ctx context.Context, tasks <-chan *Task){
 	for task := range tasks {
 		fmt.Printf("Worker %d started task %d\n", id, task.ID)
 		mu.Lock()
@@ -59,10 +60,11 @@ func main(){
 	fmt.Println("This is a task manager . Welcome v0")
 
 
-
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	for i:=1; i<=3; i++ {
-		go worker(i,TaskQueue)
+		go worker(i,ctx,TaskQueue)
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
